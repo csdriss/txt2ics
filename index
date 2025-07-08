@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text to ICS Calendar Converter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Editorial+New:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Editorial New', serif;
+            background: #f5f5dc;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .container {
+            background: #f5f5dc;
+            max-width: 700px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 600;
+            color: #666;
+            text-align: center;
+            margin-bottom: 50px;
+            letter-spacing: -0.02em;
+        }
+
+        .form-group {
+            margin-bottom: 40px;
+        }
+
+        label {
+            display: block;
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 250px;
+            padding: 20px;
+            border: 2px solid #ccc;
+            border-radius: 4px;
+            font-family: 'Editorial New', serif;
+            font-size: 1rem;
+            color: #666;
+            background: #f5f5dc;
+            resize: vertical;
+            transition: border-color 0.2s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #999;
+        }
+
+        textarea::placeholder {
+            color: #999;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 40px;
+        }
+
+        button {
+            padding: 15px 35px;
+            font-family: 'Editorial New', serif;
+            font-size: 1.1rem;
+            font-weight: 500;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .convert-btn {
+            background: #DAA520;
+            color: #8B4513;
+            border: 2px solid #DAA520;
+        }
+
+        .convert-btn:hover {
+            background: #B8860B;
+            border-color: #B8860B;
+        }
+
+        .download-btn {
+            background: #ccc;
+            color: #999;
+            border: 2px solid #ccc;
+            cursor: not-allowed;
+        }
+
+        .download-btn.active {
+            background: #32CD32;
+            color: #228B22;
+            border: 2px solid #32CD32;
+            cursor: pointer;
+        }
+
+        .download-btn.active:hover {
+            background: #228B22;
+            color: #32CD32;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status.success {
+            background: rgba(50, 205, 50, 0.1);
+            color: #228B22;
+            border: 1px solid rgba(50, 205, 50, 0.3);
+        }
+
+        .status.error {
+            background: rgba(220, 20, 60, 0.1);
+            color: #DC143C;
+            border: 1px solid rgba(220, 20, 60, 0.3);
+        }
+
+        .footer {
+            margin-top: 60px;
+            text-align: center;
+            color: #999;
+            font-size: 0.9rem;
+            font-weight: 400;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2.2rem;
+            }
+            
+            .buttons {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Calendar Converter</h1>
+        
+        <div class="form-group">
+            <label for="textInput">Paste your calendar text here:</label>
+            <textarea id="textInput" placeholder="Paste your AI-generated calendar text here..."></textarea>
+        </div>
+        
+        <div class="buttons">
+            <button class="convert-btn" onclick="convertToICS()">Convert to ICS</button>
+            <button class="download-btn" id="downloadBtn" onclick="downloadICS()">Download Calendar</button>
+        </div>
+        
+        <div class="status" id="status"></div>
+    </div>
+
+    <div class="footer">
+        made by driss
+    </div>
+
+    <script>
+        let icsContent = '';
+        
+        function convertToICS() {
+            const textInput = document.getElementById('textInput').value.trim();
+            const status = document.getElementById('status');
+            const downloadBtn = document.getElementById('downloadBtn');
+            
+            if (!textInput) {
+                showStatus('Please paste your calendar text first.', 'error');
+                return;
+            }
+            
+            try {
+                icsContent = parseTextToICS(textInput);
+                downloadBtn.classList.add('active');
+                showStatus('Calendar converted successfully! You can now download it.', 'success');
+            } catch (error) {
+                showStatus('Error converting calendar: ' + error.message, 'error');
+                downloadBtn.classList.remove('active');
+            }
+        }
+        
+        function parseTextToICS(text) {
+            const lines = text.split('\n').filter(line => line.trim());
+            const events = [];
+            let currentEvent = {};
+            
+            // Parse the existing ICS format from the document
+            if (text.includes('BEGIN:VCALENDAR')) {
+                return text; // Already in ICS format
+            }
+            
+            // Parse custom text format
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                // Check for event title (usually starts with "Studio:" or contains subject names)
+                if (line.includes('Studio:') || line.includes('ESAME') || line.includes('RIPOSO')) {
+                    if (currentEvent.title) {
+                        events.push(currentEvent);
+                    }
+                    currentEvent = { title: line };
+                }
+                // Check for date and time pattern
+                else if (line.match(/\d{1,2}\s+\w+\s+\d{4}/) || line.match(/\d{4}-\d{2}-\d{2}/) || line.match(/\d{1,2}\/\d{1,2}\/\d{4}/)) {
+                    const dateTimeMatch = line.match(/(\d{1,2})\s+(\w+)\s+(\d{4}),?\s*(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})/);
+                    if (dateTimeMatch) {
+                        const [, day, month, year, startHour, startMin, endHour, endMin] = dateTimeMatch;
+                        const monthNames = {
+                            'gennaio': '01', 'febbraio': '02', 'marzo': '03', 'aprile': '04',
+                            'maggio': '05', 'giugno': '06', 'luglio': '07', 'agosto': '08',
+                            'settembre': '09', 'ottobre': '10', 'novembre': '11', 'dicembre': '12'
+                        };
+                        const monthNum = monthNames[month.toLowerCase()] || '01';
+                        
+                        currentEvent.startDate = `${year}${monthNum}${day.padStart(2, '0')}`;
+                        currentEvent.startTime = `${startHour.padStart(2, '0')}${startMin}00`;
+                        currentEvent.endTime = `${endHour.padStart(2, '0')}${endMin}00`;
+                    }
+                }
+                // Description lines
+                else if (line && !line.includes('Studio:') && !line.includes('ESAME') && !line.includes('RIPOSO')) {
+                    if (!currentEvent.description) {
+                        currentEvent.description = line;
+                    } else {
+                        currentEvent.description += '\\n' + line;
+                    }
+                }
+            }
+            
+            if (currentEvent.title) {
+                events.push(currentEvent);
+            }
+            
+            // Generate ICS content
+            let ics = 'BEGIN:VCALENDAR\n';
+            ics += 'VERSION:2.0\n';
+            ics += 'PRODID:-//Calendar Converter//Study Schedule v1.0//EN\n';
+            ics += 'CALSCALE:GREGORIAN\n';
+            
+            events.forEach((event, index) => {
+                ics += 'BEGIN:VEVENT\n';
+                ics += `UID:${Date.now()}-${index}@calendar-converter.com\n`;
+                
+                if (event.startDate && event.startTime) {
+                    ics += `DTSTART;TZID=Europe/Rome:${event.startDate}T${event.startTime}\n`;
+                    ics += `DTEND;TZID=Europe/Rome:${event.startDate}T${event.endTime}\n`;
+                } else {
+                    // Default to today if no date found
+                    const today = new Date();
+                    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+                    ics += `DTSTART;TZID=Europe/Rome:${dateStr}T090000\n`;
+                    ics += `DTEND;TZID=Europe/Rome:${dateStr}T110000\n`;
+                }
+                
+                ics += `SUMMARY:${event.title || 'Study Session'}\n`;
+                if (event.description) {
+                    ics += `DESCRIPTION:${event.description}\n`;
+                }
+                ics += 'END:VEVENT\n';
+            });
+            
+            ics += 'END:VCALENDAR';
+            return ics;
+        }
+        
+        function downloadICS() {
+            if (!icsContent) {
+                showStatus('Please convert your calendar first.', 'error');
+                return;
+            }
+            
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'my-study-calendar.ics';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showStatus('Calendar downloaded successfully!', 'success');
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Auto-resize textarea
+        document.getElementById('textInput').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+    </script>
+</body>
+</html>
